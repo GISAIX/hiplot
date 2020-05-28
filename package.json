@@ -35,6 +35,7 @@
     "datatables.net-buttons": "^1.6.1",
     "datatables.net-buttons-bs4": "^1.6.1",
     "file-loader": "^5.0.2",
+    "hoist-non-react-statics": "^3.3.2",
     "imports-loader": "^0.8.0",
     "json5": "^2.1.1",
     "license-webpack-plugin": "^2.1.3",

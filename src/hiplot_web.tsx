@@ -30,4 +30,5 @@ import { PersistentStateInURL } from "./lib/savedstate";
 
 Object.assign(window, {
     'hiplot_setup': hiplot_setup,
+    'hiplot_component': HiPlot,
 });

@@ -82,6 +82,20 @@ function detectIsDarkTheme(): boolean {
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+
+export const defaultPlugins: PluginsMap = {
+    // Names correspond to values of hip.Displays
+    // @ts-ignore
+    "PARALLEL_PLOT": ParallelPlot,
+    // @ts-ignore
+    "XY": PlotXY,
+    // @ts-ignore
+    "DISTRIBUTION": HiPlotDistributionPlugin,
+    // @ts-ignore
+    "TABLE": RowsDisplayTable,
+};
+
+
 export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
     // React refs
     contextMenuRef = React.createRef<ContextMenu>();
@@ -124,6 +138,7 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
         comm: null,
         dark: null,
         asserts: false,
+        plugins: defaultPlugins,
     };
     static getDerivedStateFromError(error: Error) {
         // Update state so the next render will show the fallback UI.
@@ -546,16 +561,4 @@ class DocAndCredits extends React.Component<DocsCreditsProps> {
             </div>
         );
     }
-};
-
-export const defaultPlugins: PluginsMap = {
-    // Names correspond to values of hip.Displays
-    // @ts-ignore
-    "PARALLEL_PLOT": ParallelPlot,
-    // @ts-ignore
-    "XY": PlotXY,
-    // @ts-ignore
-    "DISTRIBUTION": HiPlotDistributionPlugin,
-    // @ts-ignore
-    "TABLE": RowsDisplayTable,
 };
