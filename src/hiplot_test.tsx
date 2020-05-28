@@ -232,7 +232,7 @@ export function hiplot_setup(element: HTMLElement, extra?: object) {
     if (extra !== undefined) {
         Object.assign(props, extra);
     }
-    return ReactDOM.render(<HiPlotTester hiplotProps={props} />, element);
+    return ReactDOM.render(<React.StrictMode><HiPlotTester hiplotProps={props} /></React.StrictMode>, element);
 }
 
 Object.assign(window, {

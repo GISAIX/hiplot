@@ -17,6 +17,6 @@ xp = hip.Experiment.from_iterable(data)
 st.markdown(f"Generated at {time.time()}")
 
 
-num_clicks = st.hiplot(xp)
+num_clicks = st.hiplot(xp, key="hiplot1")
 st.markdown("Something after hiplot")
 name_input = st.text_input("Enter a name", value="Streamlit")

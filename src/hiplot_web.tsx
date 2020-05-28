@@ -25,7 +25,7 @@ import { PersistentStateInURL } from "./lib/savedstate";
     if (extra.persistent_state_url_prefix !== undefined) {
         props.persistent_state = new PersistentStateInURL(extra.persistent_state_url_prefix);
     }
-    return ReactDOM.render(<HiPlot {...props} />, element);
+    return ReactDOM.render(<React.StrictMode><HiPlot {...props} /></React.StrictMode>, element);
 }
 
 Object.assign(window, {
