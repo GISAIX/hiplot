@@ -26,7 +26,7 @@ See https://facebookresearch.github.io/hiplot/contributing.html#building-javascr
 """
     HiPlotComponent = st.declare_component(path=str(built_path))
 
-    def create_instance_wrapper(f: tp.Any, exp: Experiment, key: str = None) -> tp.Any:
+    def create_instance_wrapper(f: tp.Any, exp: Experiment, key: tp.Optional[str] = None) -> tp.Any:
         if key is None:
             warnings.warn(f"""Creating a HiPlot component with key=None will make refreshes slower.
 Please use `st.hiplot(..., key=\"some_unique_key\")`""")
