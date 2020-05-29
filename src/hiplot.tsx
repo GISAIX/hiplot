@@ -300,8 +300,9 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
             this.state.persistent_state.set(PSTATE_COLOR_BY, this.state.colorby);
         }
         if (this.state.loadStatus != HiPlotLoadStatus.Loading) {
-            if ((this.state.loadStatus == HiPlotLoadStatus.Error && this.props.experiment !== prevProps.experiment) ||
-                (this.state.loadStatus != HiPlotLoadStatus.Error && this.props.experiment !== this.state.experiment)) {
+            if (this.props.experiment !== null &&
+                ((this.state.loadStatus == HiPlotLoadStatus.Error && this.props.experiment !== prevProps.experiment) ||
+                (this.state.loadStatus != HiPlotLoadStatus.Error && this.props.experiment !== this.state.experiment))) {
                 this.loadWithPromise(new Promise(function(resolve, reject) {
                     resolve({experiment: this.props.experiment});
                 }.bind(this)));
