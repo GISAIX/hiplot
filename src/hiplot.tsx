@@ -50,14 +50,13 @@ export interface HiPlotProps {
     is_webserver: boolean;
     plugins: PluginsMap;
     persistent_state?: PersistentState;
-    comm: any; // Communication object for Jupyter notebook
+    on_change: {[k: string]: Array<(type: string, data: any) => void>}; // callbacks when selection changes, etc...
     dark: boolean;
     asserts: boolean;
 };
 
 interface HiPlotState extends IDatasets {
     experiment: HiPlotExperiment | null;
-    version: number;
     loadStatus: HiPlotLoadStatus;
     error: string;
     params_def: ParamDefMap;
@@ -100,10 +99,9 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
     // React refs
     contextMenuRef = React.createRef<ContextMenu>();
 
-    comm_message_id: number = 0;
-
     plugins_window_state: {[plugin: string]: any} = {};
-    onSelectedChange_debounced: () => void;
+    callSelectedUidsHooks_debounced: () => void;
+    callFilteredUidsHooks_debounced: () => void;
 
     plugins_ref: Array<React.RefObject<PluginClass>> = []; // For debugging/tests
 
@@ -112,7 +110,6 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
         this.state = {
             experiment: props.experiment,
             colormap: null,
-            version: 0,
             loadStatus: HiPlotLoadStatus.None,
             error: null,
             dp_lookup: {},
@@ -131,7 +128,8 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
             this.plugins_window_state[name] = {};
             this.plugins_ref[index] = React.createRef<PluginClass>();
         });
-        this.onSelectedChange_debounced = _.debounce(this.onSelectedChange.bind(this), 200);
+        this.callSelectedUidsHooks_debounced = _.debounce(this.callSelectedUidsHooks.bind(this), 200);
+        this.callFilteredUidsHooks_debounced = _.debounce(this.callFilteredUidsHooks.bind(this), 200);
     }
     static defaultProps = {
         is_webserver: false,
@@ -139,6 +137,7 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
         dark: null,
         asserts: false,
         plugins: defaultPlugins,
+        on_change: null,
     };
     static getDerivedStateFromError(error: Error) {
         // Update state so the next render will show the fallback UI.
@@ -182,20 +181,19 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
             rows_highlighted: []
         };
     }
-    sendMessage(type: string, data: any): void {
-        if (this.props.comm !== null) {
-            this.props.comm.send({
-                'type': type,
-                'message_id': this.comm_message_id,
-                'data': data,
-            });
-            this.comm_message_id += 1;
+    sendMessage(type: string, get_data: () => any): void {
+        if (this.props.on_change !== null && this.props.on_change[type] && this.props.on_change[type].length) {
+            const data = get_data();
+            this.props.on_change[type].forEach(function(callback) {
+                callback(type, data);
+            })
         }
     }
-    onSelectedChange(): void {
-        this.sendMessage("selection", {
-            'selected': this.state.rows_selected.map(row => '' + row['uid'])
-        })
+    callSelectedUidsHooks(): void {
+        this.sendMessage("selected_uids", function() { return this.state.rows_selected.map(row => '' + row['uid'])}.bind(this));
+    }
+    callFilteredUidsHooks(): void {
+        this.sendMessage("filtered_uids", function() { return this.state.rows_filtered.map(row => '' + row['uid'])}.bind(this));
     }
     _loadExperiment(experiment: HiPlotExperiment) {
         // Generate dataset for Parallel Plot
@@ -236,7 +234,6 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
         this.setState(function(state, props) { return {
             experiment: experiment,
             colormap: experiment.colormap,
-            version: state.version + 1,
             loadStatus: HiPlotLoadStatus.Loaded,
             dp_lookup: dp_lookup,
             colorby: colorby,
@@ -250,7 +247,9 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
     };
     loadWithPromise(prom: Promise<any>) {
         var me = this;
-        me.setState({loadStatus: HiPlotLoadStatus.Loading});
+        me.setState({
+            loadStatus: HiPlotLoadStatus.Loading
+        });
         prom.then(function(data) {
             if (data.experiment === undefined) {
                 console.log("Experiment loading failed", data);
@@ -281,12 +280,12 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
         this.contextMenuRef.current.addCallback(this.columnContextMenu.bind(this), this);
 
         // Load experiment provided in constructor if any
-        if (this.props.experiment !== null) {
+        if (this.props.experiment) {
             this.loadWithPromise(new Promise(function(resolve, reject) {
                 resolve({experiment: this.props.experiment});
             }.bind(this)));
         }
-        else {
+        else if (this.props.is_webserver) {
             var load_uri = this.state.persistent_state.get(PSTATE_LOAD_URI);
             if (load_uri !== undefined) {
                 this.loadURI(load_uri);
@@ -294,19 +293,27 @@ export class HiPlot extends React.Component<HiPlotProps, HiPlotState> {
         }
     }
     componentDidUpdate(prevProps: HiPlotProps, prevState: HiPlotState): void {
-        if (prevState.rows_selected != this.state.rows_selected) {
-            this.onSelectedChange_debounced();
-        }
         if (prevState.rows_filtered_filters != this.state.rows_filtered_filters) {
             this.state.persistent_state.set(PSTATE_FILTERS, this.state.rows_filtered_filters);
         }
         if (prevState.colorby != this.state.colorby && this.state.colorby) {
             this.state.persistent_state.set(PSTATE_COLOR_BY, this.state.colorby);
         }
-        if (this.props.experiment !== prevProps.experiment) {
-            this.loadWithPromise(new Promise(function(resolve, reject) {
-                resolve({experiment: this.props.experiment});
-            }.bind(this)));
+        if (this.state.loadStatus != HiPlotLoadStatus.Loading) {
+            if ((this.state.loadStatus == HiPlotLoadStatus.Error && this.props.experiment !== prevProps.experiment) ||
+                (this.state.loadStatus != HiPlotLoadStatus.Error && this.props.experiment !== this.state.experiment)) {
+                this.loadWithPromise(new Promise(function(resolve, reject) {
+                    resolve({experiment: this.props.experiment});
+                }.bind(this)));
+            }
+            else {
+                if (prevState.rows_selected != this.state.rows_selected) {
+                    this.callSelectedUidsHooks_debounced();
+                }
+                if (prevState.rows_filtered != this.state.rows_filtered) {
+                    this.callFilteredUidsHooks_debounced();
+                }
+            }
         }
     }
     columnContextMenu(column: string, cm: HTMLDivElement) {

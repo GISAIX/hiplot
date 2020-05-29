@@ -14,28 +14,74 @@ import {
 import { HiPlot } from "./hiplot";
 
 import ReactDOM from "react-dom";
+import { ComponentProps } from "./streamlit/StreamlitReact";
 
 
 interface State {
+  selected_uids: Array<string>;
+  filtered_uids: Array<string>;
+  brush_extents: Array<any>;
+  experiment: any;
 };
 
-/**
- * This is a React-based component template. It's an alternative to the
- * event-based component pattern. Rather than handling RENDER_EVENT events,
- * you write your rendering logic in the render() function, which is
- * called automatically when appropriate.
- */
 class ReactTemplate extends StreamlitComponentBase<State> {
+  constructor(props: ComponentProps) {
+    super(props);
+    this.state = {
+      selected_uids: null,
+      filtered_uids: null,
+      brush_extents: null,
+      experiment: props.args.experiment,
+    };
+  }
   public render = (): ReactNode => {
     // Arguments that are passed to the plugin in Python are accessible
     // via `this.props.args`. Here, we access the "name" arg.
-    const exp = this.props.args["experiment"];
+    var on_change_handlers = {
+      'selected_uids': [this.onChange.bind(this)],
+      'filtered_uids': [this.onChange.bind(this)],
+      'brush_extents': [this.onChange.bind(this)],
+    };
     return (
       <>
-        <HiPlot experiment={exp} />
+        <HiPlot experiment={this.state.experiment} on_change={on_change_handlers} />;
       </>
     )
   }
+
+  public onChange = (type: string, data: any): void => {
+    this.setState({[type]: data});
+  }
+
+  public componentDidUpdate(prevProps, prevState: State): void {
+    const ret: Array<string> = this.props.args["ret"];
+    var changed = false;
+    const py_ret = ret.map(function(r) {
+      if (this.state[r] != prevState[r]) {
+        console.log(r, "changed");
+        changed = true;
+      }
+      return this.state[r];
+    }.bind(this));
+    if (changed || JSON.stringify(this.props.args.ret) != JSON.stringify(prevProps.args.ret)) {
+      console.log("hiplot update return", py_ret, {
+        'prevProps.args.ret': prevProps.args.ret,
+        'this.props.args.ret': this.props.args.ret,
+        'changed': changed
+      });
+      Streamlit.setComponentValue(py_ret);
+    }
+    const newExp = this.props.args['experiment'];
+    const lastExp = prevProps.args['experiment'];
+    if (newExp != lastExp) {
+      // Hopefully this whole hack shouldn't be necessary
+      if (JSON.stringify(newExp) != JSON.stringify(lastExp)) {
+        this.setState({experiment: newExp});
+      }
+    }
+    Streamlit.setFrameHeight();
+  }
+
 
   // Streamlit.setComponentValue( ... python return value )
 }

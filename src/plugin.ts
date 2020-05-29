@@ -32,7 +32,7 @@ export interface HiPlotPluginDataWithoutDatasets {
     // Data that persists upon page reload, sharing link etc...
     persistent_state: PersistentState;
 
-    sendMessage: (type: string, data: any) => void,
+    sendMessage: (type: string, data: () => any) => void,
 
     setSelected: (new_selected: Array<Datapoint>, filter: Filter | null) => void;
     setHighlighted: (new_highlighted: Array<Datapoint>) => void;
